@@ -34,11 +34,22 @@
 package fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service;
 
 import fr.paris.lutece.plugins.directory.business.Directory;
+import fr.paris.lutece.plugins.directory.utils.DirectoryUtils;
+import fr.paris.lutece.plugins.fdw.modules.wizard.business.DuplicationContext;
+import fr.paris.lutece.plugins.fdw.modules.wizard.exception.DuplicationException;
 import fr.paris.lutece.plugins.fdw.modules.wizard.service.IDuplicationService;
+import fr.paris.lutece.plugins.fdw.modules.wizard.service.WizardService;
+import fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils.DirectoryEntryMatcher;
+import fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils.FormEntryMatcher;
 import fr.paris.lutece.plugins.form.business.Form;
-import fr.paris.lutece.plugins.workflowcore.business.workflow.Workflow;
+import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfiguration;
+import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfigurationHome;
+import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfiguration;
+import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfigurationHome;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
+
+import java.util.Collection;
 
 
 /**
@@ -48,16 +59,93 @@ import fr.paris.lutece.portal.service.plugin.PluginService;
 public class ExportDirectoryConfigDuplicationService implements IDuplicationService
 {
     private static final String PLUGIN_NAME = "fdw-wizardexportdirectory";
+    private WizardService _wizardService;
 
-    /* (non-Javadoc)
-     * @see fr.paris.lutece.plugins.fdw.modules.wizard.service.IDuplicationService#doDuplicate(fr.paris.lutece.plugins.form.business.Form, fr.paris.lutece.plugins.form.business.Form, fr.paris.lutece.plugins.directory.business.Directory, fr.paris.lutece.plugins.directory.business.Directory, fr.paris.lutece.plugins.workflowcore.business.workflow.Workflow, fr.paris.lutece.plugins.workflowcore.business.workflow.Workflow)
+    /**
+     * @param wizardService the wizardService to set
      */
-    @Override
-    public void doDuplicate( Form formToCopy, Form copyOfForm, Directory directoryToCopy, Directory copyOfDirectory,
-        Workflow workflowToCopy, Workflow copyOfWorkflow )
+    public void setWizardService( WizardService wizardService )
+    {
+        this._wizardService = wizardService;
+    }
+
+    /**
+     * Gets the directory associted to a given form
+     * @param form the form
+     * @return the directory or null if no directory found
+     */
+    private Directory getDirectoryAssociatedTo( Form form )
     {
         Plugin plugin = PluginService.getPlugin( PLUGIN_NAME );
+        Directory directory = null;
+        FormConfiguration formConfiguration = FormConfigurationHome.findByPrimaryKey( form.getIdForm(  ), plugin );
 
-        // TODO
+        if ( formConfiguration != null )
+        {
+            directory = _wizardService.getDirectory( formConfiguration.getIdDirectory(  ), plugin );
+        }
+
+        return directory;
+    }
+
+    @Override
+    public void doDuplicate( DuplicationContext context )
+        throws DuplicationException
+    {
+        // duplicates the directory associated to a form
+        if ( context.isFormDuplication(  ) && context.isDirectoryDuplication(  ) )
+        {
+            Plugin plugin = PluginService.getPlugin( PLUGIN_NAME );
+
+            Form formToCopy = context.getFormToCopy(  );
+            Form formCopy = context.getFormCopy(  );
+
+            Directory directoryToCopy = getDirectoryAssociatedTo( formToCopy );
+            int nIdDirectoryCopy = DirectoryUtils.CONSTANT_ID_NULL;
+
+            if ( context.isWorkflowDuplication(  ) )
+            {
+                // directory + workflow
+                nIdDirectoryCopy = _wizardService.doCopyDirectoryWithWorkflow( directoryToCopy,
+                        context.getDirectoryCopyName(  ), context.getWorkflowCopyName(  ), plugin, context.getLocale(  ) );
+            }
+            else
+            {
+                // directory only
+                nIdDirectoryCopy = _wizardService.doCopyDirectory( directoryToCopy, context.getDirectoryCopyName(  ),
+                        plugin );
+            }
+
+            directoryToCopy = getDirectoryAssociatedTo( formToCopy );
+
+            Directory directoryCopy = _wizardService.getDirectory( nIdDirectoryCopy, plugin );
+
+            // duplicates export-directory configuration
+            // form configuration
+            FormConfiguration formConfigurationCopy = new FormConfiguration(  );
+            formConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+            formConfigurationCopy.setIdDirectory( nIdDirectoryCopy );
+            FormConfigurationHome.insert( formConfigurationCopy, plugin );
+
+            // entry configuration
+            Collection<EntryConfiguration> collectionEntryConfigurationToCopy = EntryConfigurationHome.findEntryConfigurationListByIdForm( formToCopy.getIdForm(  ),
+                    plugin );
+
+            for ( EntryConfiguration entryConfiguration : collectionEntryConfigurationToCopy )
+            {
+                int nIdFormEntryCopy = FormEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdFormEntry(  ),
+                        formToCopy, formCopy, plugin );
+
+                int nIdDirectoryEntryCopy = DirectoryEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdDirectoryEntry(  ),
+                        directoryToCopy, directoryCopy, plugin );
+
+                EntryConfiguration entryConfigurationCopy = new EntryConfiguration(  );
+                entryConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+                entryConfigurationCopy.setIdFormEntry( nIdFormEntryCopy );
+                entryConfigurationCopy.setIdDirectoryEntry( nIdDirectoryEntryCopy );
+
+                EntryConfigurationHome.insert( entryConfigurationCopy, plugin );
+            }
+        }
     }
 }

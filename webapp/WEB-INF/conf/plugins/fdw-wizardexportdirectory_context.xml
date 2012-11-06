@@ -3,6 +3,8 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd" >
 	
     <!-- Services -->
-    <bean id="fdw-wizardexportdirectory.exportDirectoryConfigDuplicationService" class="fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.ExportDirectoryConfigDuplicationService" />
-
+	<bean id="fdw-wizardexportdirectory.exportDirectoryConfigDuplicationService" class="fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.ExportDirectoryConfigDuplicationService" >
+		<property name="wizardService" ref="fdw-wizard.wizardService" />
+	</bean>
+	
 </beans>
