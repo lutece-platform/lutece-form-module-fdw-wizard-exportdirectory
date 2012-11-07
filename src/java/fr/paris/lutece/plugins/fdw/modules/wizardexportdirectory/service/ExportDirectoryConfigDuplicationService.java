@@ -38,6 +38,7 @@ import fr.paris.lutece.plugins.directory.utils.DirectoryUtils;
 import fr.paris.lutece.plugins.fdw.modules.wizard.business.DuplicationContext;
 import fr.paris.lutece.plugins.fdw.modules.wizard.exception.DuplicationException;
 import fr.paris.lutece.plugins.fdw.modules.wizard.service.IDuplicationService;
+import fr.paris.lutece.plugins.fdw.modules.wizard.service.IFormDirectoryAssociationService;
 import fr.paris.lutece.plugins.fdw.modules.wizard.service.WizardService;
 import fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils.DirectoryEntryMatcher;
 import fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils.FormEntryMatcher;
@@ -56,7 +57,7 @@ import java.util.Collection;
  * Duplication service
  *
  */
-public class ExportDirectoryConfigDuplicationService implements IDuplicationService
+public class ExportDirectoryConfigDuplicationService implements IDuplicationService, IFormDirectoryAssociationService
 {
     private static final String PLUGIN_NAME = "fdw-wizardexportdirectory";
     private WizardService _wizardService;
@@ -69,12 +70,8 @@ public class ExportDirectoryConfigDuplicationService implements IDuplicationServ
         this._wizardService = wizardService;
     }
 
-    /**
-     * Gets the directory associted to a given form
-     * @param form the form
-     * @return the directory or null if no directory found
-     */
-    private Directory getDirectoryAssociatedTo( Form form )
+    @Override
+    public Directory getDirectoryAssociatedToForm( Form form )
     {
         Plugin plugin = PluginService.getPlugin( PLUGIN_NAME );
         Directory directory = null;
@@ -100,7 +97,7 @@ public class ExportDirectoryConfigDuplicationService implements IDuplicationServ
             Form formToCopy = context.getFormToCopy(  );
             Form formCopy = context.getFormCopy(  );
 
-            Directory directoryToCopy = getDirectoryAssociatedTo( formToCopy );
+            Directory directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
             int nIdDirectoryCopy = DirectoryUtils.CONSTANT_ID_NULL;
 
             if ( context.isWorkflowDuplication(  ) )
@@ -116,7 +113,7 @@ public class ExportDirectoryConfigDuplicationService implements IDuplicationServ
                         plugin );
             }
 
-            directoryToCopy = getDirectoryAssociatedTo( formToCopy );
+            directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
 
             Directory directoryCopy = _wizardService.getDirectory( nIdDirectoryCopy, plugin );
 
