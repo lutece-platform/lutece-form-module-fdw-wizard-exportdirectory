@@ -5,6 +5,7 @@
     <!-- Services -->
 	<bean id="fdw-wizardexportdirectory.exportDirectoryConfigDuplicationService" class="fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.ExportDirectoryConfigDuplicationService" >
 		<property name="wizardService" ref="fdw-wizard.wizardService" />
+		<property name="priority" value="5" />
 	</bean>
 	
 </beans>

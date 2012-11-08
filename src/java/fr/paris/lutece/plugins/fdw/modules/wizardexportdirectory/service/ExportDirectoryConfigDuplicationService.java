@@ -34,10 +34,11 @@
 package fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service;
 
 import fr.paris.lutece.plugins.directory.business.Directory;
+import fr.paris.lutece.plugins.directory.business.DirectoryHome;
 import fr.paris.lutece.plugins.directory.utils.DirectoryUtils;
 import fr.paris.lutece.plugins.fdw.modules.wizard.business.DuplicationContext;
 import fr.paris.lutece.plugins.fdw.modules.wizard.exception.DuplicationException;
-import fr.paris.lutece.plugins.fdw.modules.wizard.service.IDuplicationService;
+import fr.paris.lutece.plugins.fdw.modules.wizard.service.DuplicationService;
 import fr.paris.lutece.plugins.fdw.modules.wizard.service.IFormDirectoryAssociationService;
 import fr.paris.lutece.plugins.fdw.modules.wizard.service.WizardService;
 import fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils.DirectoryEntryMatcher;
@@ -47,6 +48,8 @@ import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfig
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfigurationHome;
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfiguration;
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfigurationHome;
+import fr.paris.lutece.plugins.form.utils.FormUtils;
+import fr.paris.lutece.plugins.workflow.utils.WorkflowUtils;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
 
@@ -57,7 +60,8 @@ import java.util.Collection;
  * Duplication service
  *
  */
-public class ExportDirectoryConfigDuplicationService implements IDuplicationService, IFormDirectoryAssociationService
+public class ExportDirectoryConfigDuplicationService extends DuplicationService
+    implements IFormDirectoryAssociationService
 {
     private static final String PLUGIN_NAME = "fdw-wizardexportdirectory";
     private WizardService _wizardService;
@@ -97,51 +101,86 @@ public class ExportDirectoryConfigDuplicationService implements IDuplicationServ
             Form formToCopy = context.getFormToCopy(  );
             Form formCopy = context.getFormCopy(  );
 
-            Directory directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
             int nIdDirectoryCopy = DirectoryUtils.CONSTANT_ID_NULL;
+            int nIdFormCopy = FormUtils.CONSTANT_ID_NULL;
+            int nIdWorkflowCopy = WorkflowUtils.CONSTANT_ID_NULL;
 
-            if ( context.isWorkflowDuplication(  ) )
+            try
             {
-                // directory + workflow
-                nIdDirectoryCopy = _wizardService.doCopyDirectoryWithWorkflow( directoryToCopy,
-                        context.getDirectoryCopyName(  ), context.getWorkflowCopyName(  ), plugin, context.getLocale(  ) );
-            }
-            else
-            {
-                // directory only
-                nIdDirectoryCopy = _wizardService.doCopyDirectory( directoryToCopy, context.getDirectoryCopyName(  ),
+                nIdFormCopy = formCopy.getIdForm(  );
+
+                Directory directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
+
+                if ( context.isWorkflowDuplication(  ) )
+                {
+                    // directory + workflow
+                    nIdDirectoryCopy = _wizardService.doCopyDirectoryWithWorkflow( directoryToCopy,
+                            context.getDirectoryCopyName(  ), context.getWorkflowCopyName(  ), plugin,
+                            context.getLocale(  ) );
+                }
+                else
+                {
+                    // directory only
+                    nIdDirectoryCopy = _wizardService.doCopyDirectory( directoryToCopy,
+                            context.getDirectoryCopyName(  ), plugin );
+                }
+
+                Directory directoryCopy = _wizardService.getDirectory( nIdDirectoryCopy, plugin );
+                nIdWorkflowCopy = directoryCopy.getIdWorkflow(  );
+
+                directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
+
+                // duplicates export-directory configuration
+                // form configuration
+                FormConfiguration formConfigurationCopy = new FormConfiguration(  );
+                formConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+                formConfigurationCopy.setIdDirectory( nIdDirectoryCopy );
+                FormConfigurationHome.insert( formConfigurationCopy, plugin );
+
+                // entry configuration
+                Collection<EntryConfiguration> collectionEntryConfigurationToCopy = EntryConfigurationHome.findEntryConfigurationListByIdForm( formToCopy.getIdForm(  ),
                         plugin );
+
+                for ( EntryConfiguration entryConfiguration : collectionEntryConfigurationToCopy )
+                {
+                    int nIdFormEntryCopy = FormEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdFormEntry(  ),
+                            formToCopy, formCopy, plugin );
+
+                    int nIdDirectoryEntryCopy = DirectoryEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdDirectoryEntry(  ),
+                            directoryToCopy, directoryCopy, plugin );
+
+                    EntryConfiguration entryConfigurationCopy = new EntryConfiguration(  );
+                    entryConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+                    entryConfigurationCopy.setIdFormEntry( nIdFormEntryCopy );
+                    entryConfigurationCopy.setIdDirectoryEntry( nIdDirectoryEntryCopy );
+
+                    EntryConfigurationHome.insert( entryConfigurationCopy, plugin );
+                }
+
+                // update context for other services
+                context.setDirectoryToCopy( directoryToCopy );
+                context.setDirectoryCopy( directoryCopy );
             }
-
-            directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
-
-            Directory directoryCopy = _wizardService.getDirectory( nIdDirectoryCopy, plugin );
-
-            // duplicates export-directory configuration
-            // form configuration
-            FormConfiguration formConfigurationCopy = new FormConfiguration(  );
-            formConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
-            formConfigurationCopy.setIdDirectory( nIdDirectoryCopy );
-            FormConfigurationHome.insert( formConfigurationCopy, plugin );
-
-            // entry configuration
-            Collection<EntryConfiguration> collectionEntryConfigurationToCopy = EntryConfigurationHome.findEntryConfigurationListByIdForm( formToCopy.getIdForm(  ),
-                    plugin );
-
-            for ( EntryConfiguration entryConfiguration : collectionEntryConfigurationToCopy )
+            catch ( Exception e )
             {
-                int nIdFormEntryCopy = FormEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdFormEntry(  ),
-                        formToCopy, formCopy, plugin );
+                //rollback - delete copied directory and config
+                if ( nIdFormCopy > 0 )
+                {
+                    FormConfigurationHome.delete( nIdFormCopy, plugin );
+                    EntryConfigurationHome.deleteByForm( nIdFormCopy, plugin );
+                }
 
-                int nIdDirectoryEntryCopy = DirectoryEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdDirectoryEntry(  ),
-                        directoryToCopy, directoryCopy, plugin );
+                if ( nIdDirectoryCopy > 0 )
+                {
+                    DirectoryHome.remove( nIdDirectoryCopy, plugin );
+                }
 
-                EntryConfiguration entryConfigurationCopy = new EntryConfiguration(  );
-                entryConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
-                entryConfigurationCopy.setIdFormEntry( nIdFormEntryCopy );
-                entryConfigurationCopy.setIdDirectoryEntry( nIdDirectoryEntryCopy );
+                if ( nIdWorkflowCopy > 0 )
+                {
+                    _wizardService.deleteWorkflow( nIdWorkflowCopy );
+                }
 
-                EntryConfigurationHome.insert( entryConfigurationCopy, plugin );
+                throw new DuplicationException( e );
             }
         }
     }
