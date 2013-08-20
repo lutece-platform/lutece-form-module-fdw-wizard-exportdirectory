@@ -56,7 +56,7 @@ public class WizardExportDirectoryService
      *
      * @return The instance of the singleton
      */
-    public static WizardExportDirectoryService getInstance(  )
+    public static synchronized WizardExportDirectoryService getInstance( )
     {
         if ( _singleton == null )
         {
