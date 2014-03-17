@@ -48,7 +48,7 @@ import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfig
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.EntryConfigurationHome;
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfiguration;
 import fr.paris.lutece.plugins.form.modules.exportdirectory.business.FormConfigurationHome;
-import fr.paris.lutece.plugins.form.utils.FormUtils;
+import fr.paris.lutece.plugins.genericattributes.util.GenericAttributesUtils;
 import fr.paris.lutece.plugins.workflow.utils.WorkflowUtils;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.portal.service.plugin.PluginService;
@@ -58,7 +58,7 @@ import java.util.Collection;
 
 /**
  * Duplication service
- *
+ * 
  */
 public class ExportDirectoryConfigDuplicationService extends DuplicationService
     implements IFormDirectoryAssociationService
@@ -79,78 +79,77 @@ public class ExportDirectoryConfigDuplicationService extends DuplicationService
     {
         Plugin plugin = PluginService.getPlugin( PLUGIN_NAME );
         Directory directory = null;
-        FormConfiguration formConfiguration = FormConfigurationHome.findByPrimaryKey( form.getIdForm(  ), plugin );
+        FormConfiguration formConfiguration = FormConfigurationHome.findByPrimaryKey( form.getIdForm( ), plugin );
 
         if ( formConfiguration != null )
         {
-            directory = _wizardService.getDirectory( formConfiguration.getIdDirectory(  ), plugin );
+            directory = _wizardService.getDirectory( formConfiguration.getIdDirectory( ), plugin );
         }
 
         return directory;
     }
 
     @Override
-    public void doDuplicate( DuplicationContext context )
-        throws DuplicationException
+    public void doDuplicate( DuplicationContext context ) throws DuplicationException
     {
         // duplicates the directory associated to a form
-        if ( context.isFormDuplication(  ) && context.isDirectoryDuplication(  ) )
+        if ( context.isFormDuplication( ) && context.isDirectoryDuplication( ) )
         {
             Plugin plugin = PluginService.getPlugin( PLUGIN_NAME );
 
-            Form formToCopy = context.getFormToCopy(  );
-            Form formCopy = context.getFormCopy(  );
+            Form formToCopy = context.getFormToCopy( );
+            Form formCopy = context.getFormCopy( );
 
             int nIdDirectoryCopy = DirectoryUtils.CONSTANT_ID_NULL;
-            int nIdFormCopy = FormUtils.CONSTANT_ID_NULL;
+            int nIdFormCopy = GenericAttributesUtils.CONSTANT_ID_NULL;
             int nIdWorkflowCopy = WorkflowUtils.CONSTANT_ID_NULL;
 
             try
             {
-                nIdFormCopy = formCopy.getIdForm(  );
+                nIdFormCopy = formCopy.getIdForm( );
 
                 Directory directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
 
-                if ( context.isWorkflowDuplication(  ) )
+                if ( context.isWorkflowDuplication( ) )
                 {
                     // directory + workflow
                     nIdDirectoryCopy = _wizardService.doCopyDirectoryWithWorkflow( directoryToCopy,
-                            context.getDirectoryCopyName(  ), context.getWorkflowCopyName(  ), plugin,
-                            context.getLocale(  ) );
+                            context.getDirectoryCopyName( ), context.getWorkflowCopyName( ), plugin,
+                            context.getLocale( ) );
                 }
                 else
                 {
                     // directory only
                     nIdDirectoryCopy = _wizardService.doCopyDirectory( directoryToCopy,
-                            context.getDirectoryCopyName(  ), plugin );
+                            context.getDirectoryCopyName( ), plugin );
                 }
 
                 Directory directoryCopy = _wizardService.getDirectory( nIdDirectoryCopy, plugin );
-                nIdWorkflowCopy = directoryCopy.getIdWorkflow(  );
+                nIdWorkflowCopy = directoryCopy.getIdWorkflow( );
 
                 directoryToCopy = getDirectoryAssociatedToForm( formToCopy );
 
                 // duplicates export-directory configuration
                 // form configuration
-                FormConfiguration formConfigurationCopy = new FormConfiguration(  );
-                formConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+                FormConfiguration formConfigurationCopy = new FormConfiguration( );
+                formConfigurationCopy.setIdForm( formCopy.getIdForm( ) );
                 formConfigurationCopy.setIdDirectory( nIdDirectoryCopy );
                 FormConfigurationHome.insert( formConfigurationCopy, plugin );
 
                 // entry configuration
-                Collection<EntryConfiguration> collectionEntryConfigurationToCopy = EntryConfigurationHome.findEntryConfigurationListByIdForm( formToCopy.getIdForm(  ),
-                        plugin );
+                Collection<EntryConfiguration> collectionEntryConfigurationToCopy = EntryConfigurationHome
+                        .findEntryConfigurationListByIdForm( formToCopy.getIdForm( ), plugin );
 
                 for ( EntryConfiguration entryConfiguration : collectionEntryConfigurationToCopy )
                 {
-                    int nIdFormEntryCopy = FormEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdFormEntry(  ),
+                    int nIdFormEntryCopy = FormEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdFormEntry( ),
                             formToCopy, formCopy, plugin );
 
-                    int nIdDirectoryEntryCopy = DirectoryEntryMatcher.findMatchingIdEntry( entryConfiguration.getIdDirectoryEntry(  ),
-                            directoryToCopy, directoryCopy, plugin );
+                    int nIdDirectoryEntryCopy = DirectoryEntryMatcher.findMatchingIdEntry(
+                            entryConfiguration.getIdDirectoryEntry( ), directoryToCopy, directoryCopy, plugin );
 
-                    EntryConfiguration entryConfigurationCopy = new EntryConfiguration(  );
-                    entryConfigurationCopy.setIdForm( formCopy.getIdForm(  ) );
+                    EntryConfiguration entryConfigurationCopy = new EntryConfiguration( );
+                    entryConfigurationCopy.setIdForm( formCopy.getIdForm( ) );
                     entryConfigurationCopy.setIdFormEntry( nIdFormEntryCopy );
                     entryConfigurationCopy.setIdDirectoryEntry( nIdDirectoryEntryCopy );
 

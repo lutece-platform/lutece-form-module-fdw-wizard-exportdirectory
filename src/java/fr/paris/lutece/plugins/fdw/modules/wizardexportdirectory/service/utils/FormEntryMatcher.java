@@ -33,11 +33,11 @@
  */
 package fr.paris.lutece.plugins.fdw.modules.wizardexportdirectory.service.utils;
 
-import fr.paris.lutece.plugins.form.business.EntryFilter;
-import fr.paris.lutece.plugins.form.business.EntryHome;
 import fr.paris.lutece.plugins.form.business.Form;
-import fr.paris.lutece.plugins.form.business.IEntry;
-import fr.paris.lutece.plugins.form.utils.FormUtils;
+import fr.paris.lutece.plugins.genericattributes.business.Entry;
+import fr.paris.lutece.plugins.genericattributes.business.EntryFilter;
+import fr.paris.lutece.plugins.genericattributes.business.EntryHome;
+import fr.paris.lutece.plugins.genericattributes.util.GenericAttributesUtils;
 import fr.paris.lutece.portal.service.plugin.Plugin;
 
 import java.util.List;
@@ -45,7 +45,7 @@ import java.util.List;
 
 /**
  * Class for matching an entry from a form to an entry from its copy
- *
+ * 
  */
 public class FormEntryMatcher
 {
@@ -61,27 +61,27 @@ public class FormEntryMatcher
      */
     public static int findMatchingIdEntry( int nIdEntry, Form formToCopy, Form formCopy, Plugin plugin )
     {
-        int nMatchingIdEntry = FormUtils.CONSTANT_ID_NULL;
+        int nMatchingIdEntry = GenericAttributesUtils.CONSTANT_ID_NULL;
 
-        EntryFilter entryFilter = new EntryFilter(  );
-        entryFilter.setIdForm( formToCopy.getIdForm(  ) );
+        EntryFilter entryFilter = new EntryFilter( );
+        entryFilter.setIdResource( formToCopy.getIdForm( ) );
 
-        List<IEntry> listEntryToCopy = EntryHome.getEntryList( entryFilter, plugin );
+        List<Entry> listEntryToCopy = EntryHome.getEntryList( entryFilter );
 
-        entryFilter = new EntryFilter(  );
-        entryFilter.setIdForm( formCopy.getIdForm(  ) );
+        entryFilter = new EntryFilter( );
+        entryFilter.setIdResource( formCopy.getIdForm( ) );
 
-        List<IEntry> listEntryCopy = EntryHome.getEntryList( entryFilter, plugin );
+        List<Entry> listEntryCopy = EntryHome.getEntryList( entryFilter );
 
-        int nSize = listEntryToCopy.size(  );
+        int nSize = listEntryToCopy.size( );
 
         for ( int i = 0; i < nSize; i++ )
         {
-            IEntry entry = listEntryToCopy.get( i );
+            Entry entry = listEntryToCopy.get( i );
 
-            if ( entry.getIdEntry(  ) == nIdEntry )
+            if ( entry.getIdEntry( ) == nIdEntry )
             {
-                nMatchingIdEntry = listEntryCopy.get( i ).getIdEntry(  );
+                nMatchingIdEntry = listEntryCopy.get( i ).getIdEntry( );
 
                 break;
             }
